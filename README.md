@@ -13,5 +13,5 @@ in concurrent use.
 
 # bytebufferpool users
 
-    * [fasthttp](https://github.com/valyala/fasthttp)
-    * [quicktemplate](https://github.com/valyala/quicktemplate)
+* [fasthttp](https://github.com/valyala/fasthttp)
+* [quicktemplate](https://github.com/valyala/quicktemplate)
