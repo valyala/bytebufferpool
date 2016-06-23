@@ -38,8 +38,7 @@ func (p *byteBufferPool) Acquire() *ByteBuffer {
 }
 
 func (p *byteBufferPool) Release(b *ByteBuffer) {
-	bSize := len(b.B)
-	idx := bitSize(bSize-1) - minBitSize
+	idx := bitSize(len(b.B)-1) - minBitSize
 	if idx < 0 {
 		idx = 0
 	} else if idx >= steps {
@@ -51,7 +50,7 @@ func (p *byteBufferPool) Release(b *ByteBuffer) {
 	}
 
 	maxSize := int(atomic.LoadUint64(&p.maxSize))
-	if maxSize > 0 && bSize <= maxSize {
+	if maxSize > 0 && cap(b.B) <= maxSize {
 		b.B = b.B[:0]
 		p.pool.Put(b)
 	}
