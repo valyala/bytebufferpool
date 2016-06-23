@@ -35,15 +35,22 @@ func (p *byteBufferPool) Acquire() *ByteBuffer {
 func (p *byteBufferPool) Release(b *ByteBuffer) {
 	n := cap(b.B)
 	if n > maxSize {
-		// Just drop oversized buffers.
+		// Oversized buffer.
+		// Drop it.
 		return
 	}
+	if (n >> 2) > len(b.B) {
+		// Under-used buffer capacity.
+		// Drop it.
+		return
+	}
+
 	b.B = b.B[:0]
-	idx := bitsize(n-1) >> minBitSize
+	idx := bitSize(n-1) >> minBitSize
 	p.pools[idx].Put(b)
 }
 
-func bitsize(n int) int {
+func bitSize(n int) int {
 	s := 0
 	for n > 0 {
 		n >>= 1
