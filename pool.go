@@ -1,7 +1,6 @@
 package bytebufferpool
 
 import (
-	"log"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -63,8 +62,6 @@ func (p *byteBufferPool) calibrate() {
 		return
 	}
 
-	log.Printf("calls=%d", p.calls)
-
 	a := make(callSizes, 0, steps)
 	var callsSum uint64
 	for i := uint64(0); i < steps; i++ {
@@ -76,8 +73,6 @@ func (p *byteBufferPool) calibrate() {
 		})
 	}
 	sort.Sort(a)
-
-	log.Printf("a=%#v", a)
 
 	defaultSize := a[0].size
 	maxSize := defaultSize
@@ -94,8 +89,6 @@ func (p *byteBufferPool) calibrate() {
 			maxSize = size
 		}
 	}
-
-	log.Printf("maxSize=%d, defaultSize=%d\n", maxSize, defaultSize)
 
 	atomic.StoreUint64(&p.defaultSize, defaultSize)
 	atomic.StoreUint64(&p.maxSize, maxSize)
