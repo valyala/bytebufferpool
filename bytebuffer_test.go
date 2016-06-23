@@ -32,12 +32,12 @@ func TestByteBufferAcquireReleaseConcurrent(t *testing.T) {
 func testByteBufferAcquireRelease(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		expectedS := fmt.Sprintf("num %d", i)
-		b := AcquireByteBuffer()
+		b := Acquire()
 		b.B = append(b.B, "num "...)
 		b.B = append(b.B, fmt.Sprintf("%d", i)...)
 		if string(b.B) != expectedS {
 			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)
 		}
-		ReleaseByteBuffer(b)
+		Release(b)
 	}
 }

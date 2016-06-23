@@ -42,12 +42,12 @@ func testPoolVariousSizes(t *testing.T) {
 }
 
 func testAcquireRelease(t *testing.T, n int) {
-	bb := AcquireByteBuffer()
+	bb := Acquire()
 	if len(bb.B) > 0 {
 		t.Fatalf("non-empty byte buffer returned from acquire")
 	}
 	bb.B = allocNBytes(bb.B, n)
-	ReleaseByteBuffer(bb)
+	Release(bb)
 }
 
 func allocNBytes(dst []byte, n int) []byte {

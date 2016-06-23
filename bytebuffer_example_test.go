@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleByteBuffer() {
-	bb := bytebufferpool.AcquireByteBuffer()
+	bb := bytebufferpool.Acquire()
 
 	bb.WriteString("first line\n")
 	bb.Write([]byte("second line\n"))
@@ -17,5 +17,5 @@ func ExampleByteBuffer() {
 
 	// It is safe to release byte buffer now, since it is
 	// no longer used.
-	bytebufferpool.ReleaseByteBuffer(bb)
+	bytebufferpool.Release(bb)
 }
