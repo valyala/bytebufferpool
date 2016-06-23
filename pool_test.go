@@ -1,9 +1,16 @@
 package bytebufferpool
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 )
+
+func TestPoolCalibrate(t *testing.T) {
+	for i := 0; i < steps*calibrateCallsThreshold; i++ {
+		testAcquireRelease(t, rand.Intn(10000))
+	}
+}
 
 func TestPoolVariousSizesSerial(t *testing.T) {
 	testPoolVariousSizes(t)

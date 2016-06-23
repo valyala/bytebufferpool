@@ -1,6 +1,10 @@
 package bytebufferpool
 
-import "sync"
+import (
+	"sort"
+	"sync"
+	"sync/atomic"
+)
 
 const (
 	minBitSize = 8
@@ -8,9 +12,15 @@ const (
 
 	minSize = 1 << minBitSize
 	maxSize = 1 << (minBitSize + steps - 1)
+
+	calibrateCallsThreshold = 42000
 )
 
 type byteBufferPool struct {
+	idxs        [steps]uint64
+	calls       [steps]uint64
+	calibrating uint64
+
 	// Pools are segemented into power-of-two sized buffers
 	// from minSize bytes to maxSize.
 	//
@@ -19,9 +29,8 @@ type byteBufferPool struct {
 }
 
 func (p *byteBufferPool) Acquire() *ByteBuffer {
-	pools := &p.pools
-	for i := 0; i < steps; i++ {
-		v := pools[i].Get()
+	for _, idx := range p.idxs {
+		v := p.pools[idx].Get()
 		if v != nil {
 			return v.(*ByteBuffer)
 		}
@@ -39,19 +48,54 @@ func (p *byteBufferPool) Release(b *ByteBuffer) {
 		// Drop it.
 		return
 	}
-	bLen := len(b.B)
-	if bLen > 0 && (bCap>>2) > bLen {
-		// Under-used buffer capacity.
-		// Drop it.
-		//
-		// Special case: do not drop zero-length buffers -
-		// this may be the result of Reset call.
+
+	idx := bitSize(bCap-1) >> minBitSize
+	b.B = b.B[:0]
+	p.pools[idx].Put(b)
+
+	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
+		p.calibrate()
+	}
+}
+
+func (p *byteBufferPool) calibrate() {
+	if !atomic.CompareAndSwapUint64(&p.calibrating, 0, 1) {
 		return
 	}
 
-	b.B = b.B[:0]
-	idx := bitSize(bCap-1) >> minBitSize
-	p.pools[idx].Put(b)
+	var a callidxs
+	for i := uint64(0); i < steps; i++ {
+		a = append(a, callidx{
+			calls: atomic.SwapUint64(&p.calls[i], 0),
+			idx:   i,
+		})
+	}
+	sort.Sort(a)
+
+	for i := 0; i < steps; i++ {
+		atomic.StoreUint64(&p.idxs[i], a[i].idx)
+	}
+
+	atomic.StoreUint64(&p.calibrating, 0)
+}
+
+type callidx struct {
+	calls uint64
+	idx   uint64
+}
+
+type callidxs []callidx
+
+func (ci callidxs) Len() int {
+	return len(ci)
+}
+
+func (ci callidxs) Less(i, j int) bool {
+	return ci[i].calls > ci[j].calls
+}
+
+func (ci callidxs) Swap(i, j int) {
+	ci[i], ci[j] = ci[j], ci[i]
 }
 
 func bitSize(n int) int {
