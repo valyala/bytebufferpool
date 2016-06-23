@@ -18,28 +18,36 @@ const (
 )
 
 type byteBufferPool struct {
-	calls       [steps]uint64
 	calibrating uint64
 
 	defaultSize uint64
 	maxSize     uint64
 
-	pool sync.Pool
+	calls [steps]uint64
+	idxs  [steps]uint64
+	pools [steps]sync.Pool
 }
 
 func (p *byteBufferPool) Acquire() *ByteBuffer {
-	v := p.pool.Get()
-	if v != nil {
-		return v.(*ByteBuffer)
+	for i := 0; i < steps; i++ {
+		idx := atomic.LoadUint64(&p.idxs[i])
+		if idx >= steps {
+			break
+		}
+		v := p.pools[idx].Get()
+		if v != nil {
+			return v.(*ByteBuffer)
+		}
 	}
+
 	return &ByteBuffer{
 		B: make([]byte, 0, atomic.LoadUint64(&p.defaultSize)),
 	}
 }
 
 func (p *byteBufferPool) Release(b *ByteBuffer) {
-	bSize := len(b.B)
-	idx := bitSize(bSize-1) - minBitSize
+	bLen := uint64(len(b.B))
+	idx := index(bLen)
 	if idx < 0 {
 		idx = 0
 	} else if idx >= steps {
@@ -50,10 +58,12 @@ func (p *byteBufferPool) Release(b *ByteBuffer) {
 		p.calibrate()
 	}
 
-	maxSize := int(atomic.LoadUint64(&p.maxSize))
-	if maxSize > 0 && bSize <= maxSize {
+	maxSize := atomic.LoadUint64(&p.maxSize)
+	bCap := uint64(cap(b.B))
+	if maxSize > 0 && bCap <= maxSize {
+		idx = index(bCap)
 		b.B = b.B[:0]
-		p.pool.Put(b)
+		p.pools[idx].Put(b)
 	}
 }
 
@@ -80,14 +90,16 @@ func (p *byteBufferPool) calibrate() {
 	maxSum := uint64(float64(callsSum) * maxPercentile)
 	callsSum = 0
 	for i := 0; i < steps; i++ {
-		if callsSum > maxSum {
-			break
+		idx := uint64(steps)
+		if callsSum <= maxSum {
+			callsSum += a[i].calls
+			size := a[i].size
+			if size > maxSize {
+				maxSize = size
+			}
+			idx = index(size)
 		}
-		callsSum += a[i].calls
-		size := a[i].size
-		if size > maxSize {
-			maxSize = size
-		}
+		atomic.StoreUint64(&p.idxs[i], idx)
 	}
 
 	atomic.StoreUint64(&p.defaultSize, defaultSize)
@@ -115,8 +127,12 @@ func (ci callSizes) Swap(i, j int) {
 	ci[i], ci[j] = ci[j], ci[i]
 }
 
-func bitSize(n int) int {
-	s := 0
+func index(n uint64) uint64 {
+	return bitSize(n-1) - minBitSize
+}
+
+func bitSize(n uint64) uint64 {
+	s := uint64(0)
 	for n > 0 {
 		n >>= 1
 		s++
