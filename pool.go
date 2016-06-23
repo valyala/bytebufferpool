@@ -33,20 +33,24 @@ func (p *byteBufferPool) Acquire() *ByteBuffer {
 }
 
 func (p *byteBufferPool) Release(b *ByteBuffer) {
-	n := cap(b.B)
-	if n > maxSize {
+	bCap := cap(b.B)
+	if bCap > maxSize {
 		// Oversized buffer.
 		// Drop it.
 		return
 	}
-	if (n >> 2) > len(b.B) {
+	bLen := len(b.B)
+	if bLen > 0 && (bCap>>2) > bLen {
 		// Under-used buffer capacity.
 		// Drop it.
+		//
+		// Special case: do not drop zero-length buffers -
+		// this may be the result of Reset call.
 		return
 	}
 
 	b.B = b.B[:0]
-	idx := bitSize(n-1) >> minBitSize
+	idx := bitSize(bCap-1) >> minBitSize
 	p.pools[idx].Put(b)
 }
 
