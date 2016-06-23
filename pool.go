@@ -29,7 +29,8 @@ type byteBufferPool struct {
 }
 
 func (p *byteBufferPool) Acquire() *ByteBuffer {
-	for _, idx := range p.idxs {
+	for i := 0; i < steps; i++ {
+		idx := atomic.LoadUint64(&p.idxs[i])
 		v := p.pools[idx].Get()
 		if v != nil {
 			return v.(*ByteBuffer)
