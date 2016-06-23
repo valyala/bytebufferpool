@@ -8,7 +8,11 @@ import (
 
 func TestPoolCalibrate(t *testing.T) {
 	for i := 0; i < steps*calibrateCallsThreshold; i++ {
-		testAcquireRelease(t, rand.Intn(10000))
+		n := 1004
+		if i%15 == 0 {
+			n = rand.Intn(15234)
+		}
+		testAcquireRelease(t, n)
 	}
 }
 
