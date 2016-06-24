@@ -6,16 +6,16 @@ import (
 	"time"
 )
 
-func TestByteBufferAcquireReleaseSerial(t *testing.T) {
-	testByteBufferAcquireRelease(t)
+func TestByteBufferGetPutSerial(t *testing.T) {
+	testByteBufferGetPut(t)
 }
 
-func TestByteBufferAcquireReleaseConcurrent(t *testing.T) {
+func TestByteBufferGetPutConcurrent(t *testing.T) {
 	concurrency := 10
 	ch := make(chan struct{}, concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			testByteBufferAcquireRelease(t)
+			testByteBufferGetPut(t)
 			ch <- struct{}{}
 		}()
 	}
@@ -29,15 +29,15 @@ func TestByteBufferAcquireReleaseConcurrent(t *testing.T) {
 	}
 }
 
-func testByteBufferAcquireRelease(t *testing.T) {
+func testByteBufferGetPut(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		expectedS := fmt.Sprintf("num %d", i)
-		b := Acquire()
+		b := Get()
 		b.B = append(b.B, "num "...)
 		b.B = append(b.B, fmt.Sprintf("%d", i)...)
 		if string(b.B) != expectedS {
 			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)
 		}
-		Release(b)
+		Put(b)
 	}
 }

@@ -6,7 +6,7 @@ package bytebufferpool
 // ByteBuffer may be used with functions appending data to the given []byte
 // slice. See example code for details.
 //
-// Use Acquire for obtaining an empty byte buffer.
+// Use Get for obtaining an empty byte buffer.
 type ByteBuffer struct {
 
 	// B is a byte buffer to use in append-like workloads.
@@ -41,21 +41,21 @@ func (b *ByteBuffer) Reset() {
 	b.B = b.B[:0]
 }
 
-// Acquire returns an empty byte buffer from the pool.
+// Get returns an empty byte buffer from the pool.
 //
-// Acquired byte buffer may be returned to the pool via Release call.
+// Getd byte buffer may be returned to the pool via Put call.
 // This reduces the number of memory allocations required for byte buffer
 // management.
-func Acquire() *ByteBuffer {
-	return defaultByteBufferPool.Acquire()
+func Get() *ByteBuffer {
+	return defaultPool.Get()
 }
 
-// Release returns byte buffer to the pool.
+// Put returns byte buffer to the pool.
 //
 // ByteBuffer.B mustn't be touched after returning it to the pool.
 // Otherwise data races will occur.
-func Release(b *ByteBuffer) {
-	defaultByteBufferPool.Release(b)
+func Put(b *ByteBuffer) {
+	defaultPool.Put(b)
 }
 
-var defaultByteBufferPool byteBufferPool
+var defaultPool Pool

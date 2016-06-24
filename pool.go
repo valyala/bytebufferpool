@@ -17,7 +17,12 @@ const (
 	maxPercentile           = 0.95
 )
 
-type byteBufferPool struct {
+// Pool represents byte buffer pool.
+//
+// Distinct pools may be used for distinct types of byte buffers.
+// Properly determined byte buffer types with their own pools may help reducing
+// memory waste.
+type Pool struct {
 	calls       [steps]uint64
 	calibrating uint64
 
@@ -27,7 +32,11 @@ type byteBufferPool struct {
 	pool sync.Pool
 }
 
-func (p *byteBufferPool) Acquire() *ByteBuffer {
+// Get returns new byte buffer with zero length.
+//
+// The byte buffer may be returned to the pool via Put after the use
+// in order to minimize GC overhead.
+func (p *Pool) Get() *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
 		return v.(*ByteBuffer)
@@ -37,7 +46,10 @@ func (p *byteBufferPool) Acquire() *ByteBuffer {
 	}
 }
 
-func (p *byteBufferPool) Release(b *ByteBuffer) {
+// Put releases byte buffer obtained via Get to the pool.
+//
+// The bufer mustn't be accessed after returning to the pool.
+func (p *Pool) Put(b *ByteBuffer) {
 	idx := index(len(b.B))
 
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
@@ -51,7 +63,7 @@ func (p *byteBufferPool) Release(b *ByteBuffer) {
 	}
 }
 
-func (p *byteBufferPool) calibrate() {
+func (p *Pool) calibrate() {
 	if !atomic.CompareAndSwapUint64(&p.calibrating, 0, 1) {
 		return
 	}

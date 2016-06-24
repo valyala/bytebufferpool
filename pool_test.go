@@ -36,7 +36,7 @@ func TestPoolCalibrate(t *testing.T) {
 		if i%15 == 0 {
 			n = rand.Intn(15234)
 		}
-		testAcquireRelease(t, n)
+		testGetPut(t, n)
 	}
 }
 
@@ -66,23 +66,23 @@ func testPoolVariousSizes(t *testing.T) {
 	for i := 0; i < steps+1; i++ {
 		n := (1 << uint32(i))
 
-		testAcquireRelease(t, n)
-		testAcquireRelease(t, n+1)
-		testAcquireRelease(t, n-1)
+		testGetPut(t, n)
+		testGetPut(t, n+1)
+		testGetPut(t, n-1)
 
 		for j := 0; j < 10; j++ {
-			testAcquireRelease(t, j+n)
+			testGetPut(t, j+n)
 		}
 	}
 }
 
-func testAcquireRelease(t *testing.T, n int) {
-	bb := Acquire()
+func testGetPut(t *testing.T, n int) {
+	bb := Get()
 	if len(bb.B) > 0 {
 		t.Fatalf("non-empty byte buffer returned from acquire")
 	}
 	bb.B = allocNBytes(bb.B, n)
-	Release(bb)
+	Put(bb)
 }
 
 func allocNBytes(dst []byte, n int) []byte {
