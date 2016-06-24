@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	minBitSize = 6
+	minBitSize = 6 // CPU cache line size
 	steps      = 20
 
 	minSize = 1 << minBitSize
@@ -38,12 +38,7 @@ func (p *byteBufferPool) Acquire() *ByteBuffer {
 }
 
 func (p *byteBufferPool) Release(b *ByteBuffer) {
-	idx := bitSize(len(b.B)-1) - minBitSize
-	if idx < 0 {
-		idx = 0
-	} else if idx >= steps {
-		idx = steps - 1
-	}
+	idx := index(len(b.B))
 
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
 		p.calibrate()
@@ -114,11 +109,16 @@ func (ci callSizes) Swap(i, j int) {
 	ci[i], ci[j] = ci[j], ci[i]
 }
 
-func bitSize(n int) int {
-	s := 0
+func index(n int) int {
+	n--
+	n >>= minBitSize
+	idx := 0
 	for n > 0 {
 		n >>= 1
-		s++
+		idx++
 	}
-	return s
+	if idx >= steps {
+		idx = steps - 1
+	}
+	return idx
 }
