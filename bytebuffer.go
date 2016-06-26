@@ -20,6 +20,13 @@ func (b *ByteBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// WriteByte appends the byte c to the buffer.
+// The returned error is always nil.
+func (b *ByteBuffer) WriteByte(c byte) error {
+	b.B = append(b.B, c)
+	return nil
+}
+
 // WriteString appends s to ByteBuffer.B
 func (b *ByteBuffer) WriteString(s string) (int, error) {
 	b.B = append(b.B, s...)
