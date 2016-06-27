@@ -14,6 +14,9 @@ type ByteBuffer struct {
 	B []byte
 }
 
+// Bytes returns all bytes contained in buffer
+func (b *ByteBuffer) Bytes() []byte { return b.B }
+
 // Write implements io.Writer - it appends p to ByteBuffer.B
 func (b *ByteBuffer) Write(p []byte) (int, error) {
 	b.B = append(b.B, p...)
