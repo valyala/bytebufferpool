@@ -36,7 +36,7 @@ var defaultPool Pool
 
 // Get returns an empty byte buffer from the pool.
 //
-// Getd byte buffer may be returned to the pool via Put call.
+// Got byte buffer may be returned to the pool via Put call.
 // This reduces the number of memory allocations required for byte buffer
 // management.
 func Get() *ByteBuffer { return defaultPool.Get() }
