@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	minBitSize = 6 // CPU cache line size
+	minBitSize = 6 // 2**6=64 is a CPU cache line size
 	steps      = 20
 
 	minSize = 1 << minBitSize
