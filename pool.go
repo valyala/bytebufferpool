@@ -73,7 +73,7 @@ func (p *Pool) Put(b *ByteBuffer) {
 
 	maxSize := int(atomic.LoadUint64(&p.maxSize))
 	if maxSize == 0 || cap(b.B) <= maxSize {
-		b.B = b.B[:0]
+		b.Reset()
 		p.pool.Put(b)
 	}
 }
