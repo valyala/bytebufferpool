@@ -32,6 +32,15 @@ type Pool struct {
 	pool sync.Pool
 }
 
+var defaultPool Pool
+
+// Get returns an empty byte buffer from the pool.
+//
+// Got byte buffer may be returned to the pool via Put call.
+// This reduces the number of memory allocations required for byte buffer
+// management.
+func Get() *ByteBuffer { return defaultPool.Get() }
+
 // Get returns new byte buffer with zero length.
 //
 // The byte buffer may be returned to the pool via Put after the use
@@ -46,6 +55,12 @@ func (p *Pool) Get() *ByteBuffer {
 	}
 }
 
+// Put returns byte buffer to the pool.
+//
+// ByteBuffer.B mustn't be touched after returning it to the pool.
+// Otherwise data races will occur.
+func Put(b *ByteBuffer) { defaultPool.Put(b) }
+
 // Put releases byte buffer obtained via Get to the pool.
 //
 // The bufer mustn't be accessed after returning to the pool.
@@ -58,7 +73,7 @@ func (p *Pool) Put(b *ByteBuffer) {
 
 	maxSize := int(atomic.LoadUint64(&p.maxSize))
 	if maxSize == 0 || cap(b.B) <= maxSize {
-		b.B = b.B[:0]
+		b.Reset()
 		p.pool.Put(b)
 	}
 }

@@ -57,22 +57,3 @@ func (b *ByteBuffer) SetString(s string) {
 func (b *ByteBuffer) Reset() {
 	b.B = b.B[:0]
 }
-
-// Get returns an empty byte buffer from the pool.
-//
-// Getd byte buffer may be returned to the pool via Put call.
-// This reduces the number of memory allocations required for byte buffer
-// management.
-func Get() *ByteBuffer {
-	return defaultPool.Get()
-}
-
-// Put returns byte buffer to the pool.
-//
-// ByteBuffer.B mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
-func Put(b *ByteBuffer) {
-	defaultPool.Put(b)
-}
-
-var defaultPool Pool
