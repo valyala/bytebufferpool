@@ -1,5 +1,7 @@
 package bytebufferpool
 
+import "io"
+
 // ByteBuffer provides byte buffer, which can be used for minimizing
 // memory allocations.
 //
@@ -12,6 +14,12 @@ type ByteBuffer struct {
 	// B is a byte buffer to use in append-like workloads.
 	// See example code for details.
 	B []byte
+}
+
+// WriteTo implements io.WriterTo
+func (b *ByteBuffer) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(b.B)
+	return int64(n), err
 }
 
 // Bytes returns b.B, i.e. all the bytes accumulated in the buffer.
