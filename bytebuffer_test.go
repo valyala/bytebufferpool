@@ -8,6 +8,40 @@ import (
 	"time"
 )
 
+func TestByteBufferReadFrom(t *testing.T) {
+	prefix := "foobar"
+	expectedS := "asadfsdafsadfasdfisdsdfa"
+	prefixLen := int64(len(prefix))
+	expectedN := int64(len(expectedS))
+
+	var bb ByteBuffer
+	bb.WriteString(prefix)
+
+	rf := (io.ReaderFrom)(&bb)
+	for i := 0; i < 20; i++ {
+		r := bytes.NewBufferString(expectedS)
+		n, err := rf.ReadFrom(r)
+		if n != expectedN {
+			t.Fatalf("unexpected n=%d. Expecting %d. iteration %d", n, expectedN, i)
+		}
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		bbLen := int64(bb.Len())
+		expectedLen := prefixLen + int64(i+1)*expectedN
+		if bbLen != expectedLen {
+			t.Fatalf("unexpected byteBuffer length: %d. Expecting %d", bbLen, expectedLen)
+		}
+		for j := 0; j < i; j++ {
+			start := prefixLen + int64(j)*expectedN
+			b := bb.B[start : start+expectedN]
+			if string(b) != expectedS {
+				t.Fatalf("unexpected byteBuffer contents: %q. Expecting %q", b, expectedS)
+			}
+		}
+	}
+}
+
 func TestByteBufferWriteTo(t *testing.T) {
 	expectedS := "foobarbaz"
 	var bb ByteBuffer
