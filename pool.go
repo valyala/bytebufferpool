@@ -63,7 +63,7 @@ func Put(b *ByteBuffer) { defaultPool.Put(b) }
 
 // Put releases byte buffer obtained via Get to the pool.
 //
-// The bufer mustn't be accessed after returning to the pool.
+// The buffer mustn't be accessed after returning to the pool.
 func (p *Pool) Put(b *ByteBuffer) {
 	idx := index(len(b.B))
 
