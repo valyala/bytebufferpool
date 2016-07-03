@@ -101,3 +101,38 @@ func testByteBufferGetPut(t *testing.T) {
 		Put(b)
 	}
 }
+
+func testByteBufferGetString(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		expectedS := fmt.Sprintf("num %d", i)
+		b := Get()
+		b.SetString(expectedS)
+		if b.String() != expectedS {
+			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)
+		}
+		Put(b)
+	}
+}
+
+func TestByteBufferGetStringSerial(t *testing.T) {
+	testByteBufferGetString(t)
+}
+
+func TestByteBufferGetStringConcurrent(t *testing.T) {
+	concurrency := 10
+	ch := make(chan struct{}, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			testByteBufferGetString(t)
+			ch <- struct{}{}
+		}()
+	}
+
+	for i := 0; i < concurrency; i++ {
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			t.Fatalf("timeout!")
+		}
+	}
+}

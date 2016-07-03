@@ -100,6 +100,11 @@ func (b *ByteBuffer) SetString(s string) {
 	b.B = append(b.B[:0], s...)
 }
 
+// String returns string representation of ByteBuffer.B
+func (b *ByteBuffer) String() string {
+	return string(b.B[:])
+}
+
 // Reset makes ByteBuffer.B empty.
 func (b *ByteBuffer) Reset() {
 	b.B = b.B[:0]
