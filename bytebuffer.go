@@ -13,19 +13,28 @@ type ByteBuffer struct {
 
 	// B is a byte buffer to use in append-like workloads.
 	// See example code for details.
-	B []byte
+	buf []byte
 }
+
+// NewByteBuffer creates and initializes a new ByteBuffer using buf as its initial
+// contents.
+func NewByteBuffer(buf []byte) *ByteBuffer { return &ByteBuffer{buf: buf} }
 
 // Len returns the size of the byte buffer.
 func (b *ByteBuffer) Len() int {
-	return len(b.B)
+	return len(b.buf)
+}
+
+// Cap returns the capacity of the buffer's underlying byte slice.
+func (b *ByteBuffer) Cap() int {
+	return cap(b.buf)
 }
 
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
 func (b *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
-	p := b.B
+	p := b.buf
 	nStart := int64(len(p))
 	nMax := int64(cap(p))
 	n := nStart
@@ -45,7 +54,7 @@ func (b *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 		nn, err := r.Read(p[n:])
 		n += int64(nn)
 		if err != nil {
-			b.B = p[:n]
+			b.buf = p[:n]
 			n -= nStart
 			if err == io.EOF {
 				return n, nil
@@ -57,7 +66,7 @@ func (b *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo implements io.WriterTo.
 func (b *ByteBuffer) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(b.B)
+	n, err := w.Write(b.buf)
 	return int64(n), err
 }
 
@@ -65,12 +74,12 @@ func (b *ByteBuffer) WriteTo(w io.Writer) (int64, error) {
 //
 // The purpose of this function is bytes.Buffer compatibility.
 func (b *ByteBuffer) Bytes() []byte {
-	return b.B
+	return b.buf
 }
 
 // Write implements io.Writer - it appends p to ByteBuffer.B
 func (b *ByteBuffer) Write(p []byte) (int, error) {
-	b.B = append(b.B, p...)
+	b.buf = append(b.buf, p...)
 	return len(p), nil
 }
 
@@ -80,32 +89,32 @@ func (b *ByteBuffer) Write(p []byte) (int, error) {
 //
 // The function always returns nil.
 func (b *ByteBuffer) WriteByte(c byte) error {
-	b.B = append(b.B, c)
+	b.buf = append(b.buf, c)
 	return nil
 }
 
 // WriteString appends s to ByteBuffer.B.
 func (b *ByteBuffer) WriteString(s string) (int, error) {
-	b.B = append(b.B, s...)
+	b.buf = append(b.buf, s...)
 	return len(s), nil
 }
 
 // Set sets ByteBuffer.B to p.
 func (b *ByteBuffer) Set(p []byte) {
-	b.B = append(b.B[:0], p...)
+	b.buf = append(b.buf[:0], p...)
 }
 
 // SetString sets ByteBuffer.B to s.
 func (b *ByteBuffer) SetString(s string) {
-	b.B = append(b.B[:0], s...)
+	b.buf = append(b.buf[:0], s...)
 }
 
 // String returns string representation of ByteBuffer.B.
 func (b *ByteBuffer) String() string {
-	return string(b.B)
+	return string(b.buf)
 }
 
 // Reset makes ByteBuffer.B empty.
 func (b *ByteBuffer) Reset() {
-	b.B = b.B[:0]
+	b.buf = b.buf[:0]
 }
