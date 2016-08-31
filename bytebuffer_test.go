@@ -34,9 +34,10 @@ func TestByteBufferReadFrom(t *testing.T) {
 		}
 		for j := 0; j < i; j++ {
 			start := prefixLen + int64(j)*expectedN
-			b := bb.B[start : start+expectedN]
-			if string(b) != expectedS {
-				t.Fatalf("unexpected byteBuffer contents: %q. Expecting %q", b, expectedS)
+			got := bb.Bytes()
+			got = got[start : start+expectedN]
+			if string(got) != expectedS {
+				t.Fatalf("unexpected byteBuffer contents: %q. Expecting %q", got, expectedS)
 			}
 		}
 	}
@@ -93,10 +94,10 @@ func testByteBufferGetPut(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		expectedS := fmt.Sprintf("num %d", i)
 		b := Get()
-		b.B = append(b.B, "num "...)
-		b.B = append(b.B, fmt.Sprintf("%d", i)...)
-		if string(b.B) != expectedS {
-			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)
+		b.WriteString("num ")
+		b.WriteString(fmt.Sprintf("%d", i))
+		if b.String() != expectedS {
+			t.Fatalf("unexpected result: %q. Expecting %q", b.Bytes(), expectedS)
 		}
 		Put(b)
 	}
@@ -108,7 +109,7 @@ func testByteBufferGetString(t *testing.T) {
 		b := Get()
 		b.SetString(expectedS)
 		if b.String() != expectedS {
-			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)
+			t.Fatalf("unexpected result: %q. Expecting %q", b.Bytes(), expectedS)
 		}
 		Put(b)
 	}
