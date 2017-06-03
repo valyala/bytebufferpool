@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	minBitSize = 6 // 2**6=64 is a CPU cache line size
-	steps      = 20
+	defaultMinBitSize = 6 // 2**6=64 is a CPU cache line size
+	steps             = 20
 
-	minSize = 1 << minBitSize
-	maxSize = 1 << (minBitSize + steps - 1)
+	defaultMinSize = 1 << defaultMinBitSize
+	defaultMaxSize = 1 << (defaultMinBitSize + steps - 1)
 
 	calibrateCallsThreshold = 42000
 	maxPercentile           = 0.95
@@ -28,6 +28,9 @@ type Pool struct {
 
 	defaultSize uint64
 	maxSize     uint64
+
+	minBitSize uint64
+	minSize    uint64
 
 	pool sync.Pool
 }
@@ -65,7 +68,11 @@ func Put(b *ByteBuffer) { defaultPool.Put(b) }
 //
 // The buffer mustn't be accessed after returning to the pool.
 func (p *Pool) Put(b *ByteBuffer) {
-	idx := index(len(b.B))
+	if p.minBitSize == 0 {
+		p.initBins()
+	}
+
+	idx := index(p.minBitSize, len(b.B))
 
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
 		p.calibrate()
@@ -83,6 +90,10 @@ func (p *Pool) calibrate() {
 		return
 	}
 
+	if p.minBitSize == 0 {
+		p.initBins()
+	}
+
 	a := make(callSizes, 0, steps)
 	var callsSum uint64
 	for i := uint64(0); i < steps; i++ {
@@ -90,8 +101,18 @@ func (p *Pool) calibrate() {
 		callsSum += calls
 		a = append(a, callSize{
 			calls: calls,
-			size:  minSize << i,
+			size:  p.minSize << i,
 		})
+	}
+	if p.minBitSize+steps < 32 && a[steps-1].calls > a[0].calls {
+		// Increase the first bin's size
+		p.resizeBins(p.minBitSize + 1)
+	} else if p.minBitSize > defaultMinBitSize &&
+		a[0].calls > 0 &&
+		a[steps-2].calls == 0 &&
+		a[steps-1].calls == 0 {
+		// Decrease the size of first bin's size
+		p.resizeBins(p.minBitSize - 1)
 	}
 	sort.Sort(a)
 
@@ -117,6 +138,16 @@ func (p *Pool) calibrate() {
 	atomic.StoreUint64(&p.calibrating, 0)
 }
 
+func (p *Pool) resizeBins(minBitSize uint64) {
+	atomic.StoreUint64(&p.minBitSize, minBitSize)
+	atomic.StoreUint64(&p.minSize, 1<<minBitSize)
+}
+
+func (p *Pool) initBins() {
+	atomic.StoreUint64(&p.minBitSize, defaultMinBitSize)
+	atomic.StoreUint64(&p.minSize, 1<<defaultMinBitSize)
+}
+
 type callSize struct {
 	calls uint64
 	size  uint64
@@ -136,7 +167,7 @@ func (ci callSizes) Swap(i, j int) {
 	ci[i], ci[j] = ci[j], ci[i]
 }
 
-func index(n int) int {
+func index(minBitSize uint64, n int) int {
 	n--
 	n >>= minBitSize
 	idx := 0
