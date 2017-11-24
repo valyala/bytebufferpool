@@ -27,5 +27,5 @@ type Pool struct {
 }
 
 func init() {
-	log.Println("Using github.com/gallir/shortlivedpooll")
+	log.Println("Using github.com/gallir/shortlivedpool instead of sync.pool")
 }
