@@ -2,8 +2,9 @@ package bytebufferpool
 
 import (
 	"sort"
-	"sync"
 	"sync/atomic"
+
+	"github.com/gallir/shortlivedpool"
 )
 
 const (
@@ -32,7 +33,7 @@ type Pool struct {
 	minBitSize uint64
 	minSize    uint64
 
-	pool sync.Pool
+	pool shortlivedpool.Pool
 }
 
 var defaultPool Pool
