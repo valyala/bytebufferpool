@@ -70,6 +70,10 @@ func TestByteBufferGetPutSerial(t *testing.T) {
 	testByteBufferGetPut(t)
 }
 
+func TestByteBufferGetLenPutSerial(t *testing.T) {
+	testByteBufferGetLenPut(t)
+}
+
 func TestByteBufferGetPutConcurrent(t *testing.T) {
 	concurrency := 10
 	ch := make(chan struct{}, concurrency)
@@ -89,11 +93,48 @@ func TestByteBufferGetPutConcurrent(t *testing.T) {
 	}
 }
 
+func TestByteBufferGetLenPutConcurrent(t *testing.T) {
+	concurrency := 10
+	ch := make(chan struct{}, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			testByteBufferGetLenPut(t)
+			ch <- struct{}{}
+		}()
+	}
+
+	for i := 0; i < concurrency; i++ {
+		select {
+		case <-ch:
+		case <-time.After(time.Second):
+			t.Fatalf("timeout!")
+		}
+	}
+}
+
 func testByteBufferGetPut(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		expectedS := fmt.Sprintf("num %d", i)
 		b := Get()
 		b.B = append(b.B, "num "...)
+		b.B = append(b.B, fmt.Sprintf("%d", i)...)
+		if string(b.B) != expectedS {
+			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)
+		}
+		Put(b)
+	}
+}
+
+func testByteBufferGetLenPut(t *testing.T) {
+	bytes := []byte("test len ")
+	for i := 0; i < 10; i++ {
+		expectedS := fmt.Sprintf("%s num %d", string(bytes), i)
+		b := GetLen(len(bytes))
+		if len(b.B) != len(bytes) {
+			t.Fatalf("unexpected len: %d. Expecting %d", len(b.B), len(bytes))
+		}
+		copy(b.B, bytes)
+		b.B = append(b.B, " num "...)
 		b.B = append(b.B, fmt.Sprintf("%d", i)...)
 		if string(b.B) != expectedS {
 			t.Fatalf("unexpected result: %q. Expecting %q", b.B, expectedS)

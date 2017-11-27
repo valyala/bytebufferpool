@@ -50,11 +50,43 @@ func Get() *ByteBuffer { return defaultPool.Get() }
 func (p *Pool) Get() *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
-		return v.(*ByteBuffer)
+		b := v.(*ByteBuffer)
+		b.Reset()
+		return b
 	}
 	return &ByteBuffer{
 		B: make([]byte, 0, atomic.LoadUint64(&p.defaultSize)),
 	}
+}
+
+// GetLen returns a buufer with its
+// []byte slice of the exact len as specified
+//
+// The byte buffer may be returned to the pool via Put after the use
+// in order to minimize GC overhead.
+func GetLen(s int) *ByteBuffer { return defaultPool.GetLen(s) }
+
+// GetLen return a buufer with its
+// []byte slice of the exact len as specified
+//
+// The byte buffer may be returned to the pool via Put after the use
+// in order to minimize GC overhead.
+func (p *Pool) GetLen(s int) *ByteBuffer {
+	v := p.pool.Get()
+	if v == nil {
+		return &ByteBuffer{
+			B: make([]byte, s),
+		}
+	}
+
+	b := v.(*ByteBuffer)
+	if cap(b.B) < s {
+		// Create a new []byte slice
+		b.B = make([]byte, s)
+	} else {
+		b.B = b.B[:s]
+	}
+	return b
 }
 
 // Put returns byte buffer to the pool.
@@ -79,7 +111,6 @@ func (p *Pool) Put(b *ByteBuffer) {
 
 	maxSize := int(atomic.LoadUint64(&p.maxSize))
 	if maxSize == 0 || cap(b.B) <= maxSize {
-		b.Reset()
 		p.pool.Put(b)
 	}
 }
