@@ -2,6 +2,7 @@ package bytebufferpool
 
 import (
 	"sort"
+	"sync"
 	"sync/atomic"
 )
 
@@ -31,7 +32,7 @@ type Pool struct {
 	minBitSize uint64
 	minSize    uint64
 
-	actualPool // Conditional compilation on flag
+	pool sync.Pool
 }
 
 var defaultPool Pool
