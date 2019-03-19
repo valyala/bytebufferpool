@@ -83,7 +83,9 @@ func (p *Pool) GetLen(s int) *ByteBuffer {
 	b := v.(*ByteBuffer)
 	if cap(b.B) < s {
 		// Create a new []byte slice
-		b.B = make([]byte, s)
+		// b.B = make([]byte, s)
+		// Extend the slice
+		b.B = append(b.B[:cap(b.B)], make([]byte, s-cap(b.B))...)
 	} else {
 		b.B = b.B[:s]
 	}

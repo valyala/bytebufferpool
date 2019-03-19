@@ -92,3 +92,48 @@ func allocNBytes(dst []byte, n int) []byte {
 	}
 	return append(dst, make([]byte, diff)...)
 }
+
+func TestPoolGetLenVariousSizesSerial(t *testing.T) {
+	testPoolGetLenVariousSizesSerial(t)
+}
+
+func testPoolGetLenVariousSizesSerial(t *testing.T) {
+	for i := 0; i < steps+1; i++ {
+		n := (1 << uint32(i))
+
+		testGetLenPut(t, n)
+		testGetLenPut(t, n+1)
+		testGetLenPut(t, n-1)
+
+		for j := 0; j < 10; j++ {
+			testGetLenPut(t, j+n)
+		}
+	}
+}
+
+func testGetLenPut(t *testing.T, n int) {
+	bb := GetLen(n)
+	if len(bb.B) != n {
+		t.Fatalf("wrong len returned by GetLen %d", n)
+	}
+	bb.B = allocNBytes(bb.B, n)
+	Put(bb)
+}
+
+func TestPoolGetLenVariousSizesConcurrent(t *testing.T) {
+	concurrency := 5
+	ch := make(chan struct{})
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			testPoolGetLenVariousSizesSerial(t)
+			ch <- struct{}{}
+		}()
+	}
+	for i := 0; i < concurrency; i++ {
+		select {
+		case <-ch:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timeout")
+		}
+	}
+}
