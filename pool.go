@@ -75,8 +75,12 @@ func GetLen(s int) *ByteBuffer { return defaultPool.GetLen(s) }
 func (p *Pool) GetLen(s int) *ByteBuffer {
 	v := p.pool.Get()
 	if v == nil {
+		size := int(p.minSize << uint(index(p.minBitSize, s)))
+		if size < s {
+			size = s
+		}
 		return &ByteBuffer{
-			B: make([]byte, s),
+			B: make([]byte, s, size),
 		}
 	}
 
@@ -85,10 +89,14 @@ func (p *Pool) GetLen(s int) *ByteBuffer {
 		// Create a new []byte slice
 		// b.B = make([]byte, s)
 		// Extend the slice
-		b.B = append(b.B[:cap(b.B)], make([]byte, s-cap(b.B))...)
-	} else {
-		b.B = b.B[:s]
+		size := int(p.minSize << uint(index(p.minBitSize, s)))
+		if size < s {
+			size = s
+		}
+		b.B = append(b.B[:cap(b.B)], make([]byte, size-cap(b.B))...)
 	}
+
+	b.B = b.B[:s]
 	return b
 }
 
