@@ -85,19 +85,20 @@ func (p *Pool) GetLen(s int) *ByteBuffer {
 	}
 
 	b := v.(*ByteBuffer)
-	if cap(b.B) < s {
-		// Create a new []byte slice
-		// b.B = make([]byte, s)
-		// Extend the slice
-		size := int(p.minSize << uint(index(p.minBitSize, s)))
-		if size < s {
-			size = s
-		}
-		b.B = append(b.B[:cap(b.B)], make([]byte, size-cap(b.B))...)
+	if cap(b.B) >= s {
+		b.B = b.B[:s]
+		return b
 	}
 
-	b.B = b.B[:s]
-	return b
+	// The size is smaller, return it to the pool and create another one
+	p.pool.Put(b)
+	size := int(p.minSize << uint(index(p.minBitSize, s)))
+	if size < s {
+		size = s
+	}
+	return &ByteBuffer{
+		B: make([]byte, s, size),
+	}
 }
 
 // Put returns byte buffer to the pool.
