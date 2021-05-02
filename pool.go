@@ -15,6 +15,26 @@ const (
 
 	calibrateCallsThreshold = 42000
 	maxPercentile           = 0.95
+
+	callsSumMaxValue = steps * calibrateCallsThreshold
+
+	fractionDenominator = uint64(100) // denominator of regular fractions
+
+	// regular fraction of maxPercentile
+	maxPercentileRNumer = uint64(maxPercentile * float64(fractionDenominator)) // numerator of maxPercentile
+	maxPercentileGcd    = uint64(5)                                            // gcd(maxPercentileRNumer, fractionDenominator) = gcd(int(maxPercentile * 100), 100)
+	maxPercentileNumer  = maxPercentileRNumer / maxPercentileGcd               // simplified numerator of maxPercentile
+	maxPercentileDenom  = fractionDenominator / maxPercentileGcd               // simplified denominator of maxPercentile
+
+	// allowable size spread for DefaultSize additional adjustment
+	calibrateDefaultSizeAdjustmentsSpread = 0.05                                      // down to 5% of initial DefaultSize` calls count
+	calibrateDefaultSizeAdjustmentsFactor = 1 - calibrateDefaultSizeAdjustmentsSpread // see calibrate() below
+
+	// regular fraction of calibrateDefaultSizeAdjustmentsFactor
+	calibrateDefaultSizeAdjustmentsFactorRNumer = uint64(calibrateDefaultSizeAdjustmentsFactor * float64(fractionDenominator)) // numerator of calibrateDefaultSizeAdjustmentsFactor
+	calibrateDSASGcd                            = uint64(5)                                                                    // gcd(calibrateDefaultSizeAdjustmentsFactorRNumer, fractionDenominator)
+	calibrateDefaultSizeAdjustmentsFactorNumer  = calibrateDefaultSizeAdjustmentsFactorRNumer / calibrateDSASGcd               // simplified numerator of calibrateDefaultSizeAdjustmentsFactor
+	calibrateDefaultSizeAdjustmentsFactorDenom  = fractionDenominator / calibrateDSASGcd                                       // simplified denominator of calibrateDefaultSizeAdjustmentsFactor
 )
 
 // Pool represents byte buffer pool.
@@ -84,7 +104,9 @@ func (p *Pool) calibrate() {
 	}
 
 	a := make(callSizes, 0, steps)
-	var callsSum uint64
+
+	callsSum := uint64(0)
+
 	for i := uint64(0); i < steps; i++ {
 		calls := atomic.SwapUint64(&p.calls[i], 0)
 		callsSum += calls
@@ -98,17 +120,43 @@ func (p *Pool) calibrate() {
 	defaultSize := a[0].size
 	maxSize := defaultSize
 
-	maxSum := uint64(float64(callsSum) * maxPercentile)
-	callsSum = 0
-	for i := 0; i < steps; i++ {
+	// callsSum <= steps * calibrateCallsThreshold + maybe small R = callsSumMaxValue + R <<<< (MaxUint64 / fractionDenominator),
+	// maxPercentileNumer < fractionDenominator, therefore, integer multiplication by a fraction can be used without overflow
+	maxSum := (callsSum * maxPercentileNumer) / maxPercentileDenom // == uint64(callsSum * maxPercentile)
+
+	// avoid visiting a[0] one more times in `for` loop below
+	callsSum = a[0].calls
+
+	// defaultSize adjust cond:
+	//     ( abs(a[0].calls - a[i].calls) < a[0].calls * calibrateDefaultSizeAdjustmentsSpread ) && ( defaultSize < a[i].size )
+	// due to fact that a is sorted by calls desc,
+	// abs(a[0].calls - a[i].calls) === a[0].calls - a[i].calls ==>
+	// a[0].calls - a[i].calls < a[0].calls * calibrateDefaultSizeAdjustmentsSpread ==>
+	// a[0].calls - a[0].calls * calibrateDefaultSizeAdjustmentsSpread < a[i].calls ==>
+	// a[i].calls > a[0].calls * (1 - calibrateDefaultSizeAdjustmentsSpread) ==>
+	// a[i].calls > a[0].calls * calibrateDefaultSizeAdjustmentsFactor
+	// and we can pre-calculate a[0].calls * calibrateDefaultSizeAdjustmentsFactor
+
+	// a[0].calls ~= calibrateCallsThreshold + maybe small R <<<< (MaxUint64 / fractionDenominator)
+	defSizeAdjustCallsThreshold := (a[0].calls * calibrateDefaultSizeAdjustmentsFactorNumer) / calibrateDefaultSizeAdjustmentsFactorDenom // == uint64(a[0].calls * calibrateDefaultSizeAdjustmentsFactor)
+
+	for i := 1; i < steps; i++ {
+
 		if callsSum > maxSum {
 			break
 		}
-		callsSum += a[i].calls
+
 		size := a[i].size
+
+		if (a[i].calls > defSizeAdjustCallsThreshold) && (size > defaultSize) {
+			defaultSize = size
+		}
+
 		if size > maxSize {
 			maxSize = size
 		}
+
+		callsSum += a[i].calls
 	}
 
 	atomic.StoreUint64(&p.defaultSize, defaultSize)
