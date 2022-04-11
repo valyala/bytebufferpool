@@ -11,7 +11,7 @@ const (
 	steps      = 20
 
 	minSize = 1 << minBitSize
-	maxSize = 1 << (minBitSize + steps - 1)
+	maxSize = 1 << (minBitSize + steps - 1) //nolint:unused
 
 	calibrateCallsThreshold = 42000
 	maxPercentile           = 0.95
