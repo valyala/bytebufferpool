@@ -1,6 +1,9 @@
 package bytebufferpool
 
-import "io"
+import (
+	"io"
+	"unsafe"
+)
 
 // ByteBuffer provides byte buffer, which can be used for minimizing
 // memory allocations.
@@ -102,7 +105,7 @@ func (b *ByteBuffer) SetString(s string) {
 
 // String returns string representation of ByteBuffer.B.
 func (b *ByteBuffer) String() string {
-	return string(b.B)
+	return *(*string)(unsafe.Pointer(&b.B))
 }
 
 // Reset makes ByteBuffer.B empty.
