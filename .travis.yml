@@ -1,15 +1,31 @@
 language: go
+arch:
+  - amd64
+  - ppc64le
+os:
+  - linux
+  - osx
+  - windows
 
 go:
-  - 1.6
+  - 1.15.x
+  - 1.14.x
+  - 1.13.x
+  - 1.12.x
+  - tip
 
 script:
-  # build test for supported platforms
-  - GOOS=linux go build
-  - GOOS=darwin go build
-  - GOOS=freebsd go build
-  - GOOS=windows go build
-  - GOARCH=386 go build
+  - go test -v -cover -race ./...
 
-  # run tests on a standard platform
-  - go test -v ./...
+jobs:
+  allow_failures:
+    - go: tip
+
+  include:
+    - stage: cross compilation
+      script:
+        - GOOS=linux go build
+        - GOOS=darwin go build
+        - GOOS=freebsd go build
+        - GOOS=windows go build
+        - GOARCH=386 go build
