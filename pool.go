@@ -23,13 +23,12 @@ const (
 // Properly determined byte buffer types with their own pools may help reducing
 // memory waste.
 type Pool struct {
+	pool        sync.Pool
 	calls       [steps]uint64
 	calibrating uint64
 
 	defaultSize uint64
 	maxSize     uint64
-
-	pool sync.Pool
 }
 
 var defaultPool Pool
