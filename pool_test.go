@@ -92,3 +92,14 @@ func allocNBytes(dst []byte, n int) []byte {
 	}
 	return append(dst, make([]byte, diff)...)
 }
+
+func TestPutNil(t *testing.T) {
+	// Put must not panic on nil; useful for deferred cleanup patterns:
+	//   b := Get()
+	//   defer Put(b)
+	//   ... early return before reassignment, etc.
+	Put(nil)
+
+	var p Pool
+	p.Put(nil)
+}

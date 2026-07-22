@@ -64,7 +64,12 @@ func Put(b *ByteBuffer) { defaultPool.Put(b) }
 // Put releases byte buffer obtained via Get to the pool.
 //
 // The buffer mustn't be accessed after returning to the pool.
+// Put is a no-op if b is nil.
 func (p *Pool) Put(b *ByteBuffer) {
+	if b == nil {
+		return
+	}
+
 	idx := index(len(b.B))
 
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
