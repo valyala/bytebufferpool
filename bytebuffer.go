@@ -109,3 +109,23 @@ func (b *ByteBuffer) String() string {
 func (b *ByteBuffer) Reset() {
 	b.B = b.B[:0]
 }
+
+// Grow grows the buffer's capacity, if necessary, to guarantee space for
+// another n bytes. After Grow(n), at least n bytes can be written without
+// another allocation. If n is negative, Grow panics.
+func (b *ByteBuffer) Grow(n int) {
+	if n < 0 {
+		panic("bytebufferpool.ByteBuffer.Grow: negative count")
+	}
+	if n == 0 {
+		return
+	}
+	if cap(b.B)-len(b.B) >= n {
+		return
+	}
+	// Allocate enough for current length + n, with room to grow.
+	need := len(b.B) + n
+	bNew := make([]byte, len(b.B), need)
+	copy(bNew, b.B)
+	b.B = bNew
+}
