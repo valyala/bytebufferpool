@@ -92,3 +92,110 @@ func allocNBytes(dst []byte, n int) []byte {
 	}
 	return append(dst, make([]byte, diff)...)
 }
+
+func TestPoolGetBytesSerial(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		b := GetBytes()
+		if len(b) > 0 {
+			t.Fatalf("unexpected non-empty slice: len=%d", len(b))
+		}
+		expected := "hello world"
+		b = append(b, expected...)
+		if string(b) != expected {
+			t.Fatalf("unexpected content: %q, expecting %q", string(b), expected)
+		}
+		PutBytes(b)
+	}
+}
+
+func TestPoolGetBytesConcurrent(t *testing.T) {
+	concurrency := 10
+	ch := make(chan struct{}, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func(worker int) {
+			for j := 0; j < 50; j++ {
+				b := GetBytes()
+				if len(b) > 0 {
+					t.Errorf("worker %d: non-empty slice returned: len=%d", worker, len(b))
+					ch <- struct{}{}
+					return
+				}
+				b = append(b, "test-data"...)
+				PutBytes(b)
+			}
+			ch <- struct{}{}
+		}(i)
+	}
+	for i := 0; i < concurrency; i++ {
+		select {
+		case <-ch:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timeout")
+		}
+	}
+}
+
+func TestPoolGetSliceSerial(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		b := GetSlice()
+		if len(b) > 0 {
+			t.Fatalf("unexpected non-empty slice: len=%d", len(b))
+		}
+		expected := "slice data"
+		b = append(b, expected...)
+		if string(b) != expected {
+			t.Fatalf("unexpected content: %q, expecting %q", string(b), expected)
+		}
+		PutSlice(b)
+	}
+}
+
+func TestPoolGetSliceConcurrent(t *testing.T) {
+	concurrency := 10
+	ch := make(chan struct{}, concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for j := 0; j < 50; j++ {
+				b := GetSlice()
+				if len(b) > 0 {
+					t.Errorf("non-empty slice returned: len=%d", len(b))
+					ch <- struct{}{}
+					return
+				}
+				b = append(b, "slice-data"...)
+				PutSlice(b)
+			}
+			ch <- struct{}{}
+		}()
+	}
+	for i := 0; i < concurrency; i++ {
+		select {
+		case <-ch:
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timeout")
+		}
+	}
+}
+
+func TestCustomPoolBytes(t *testing.T) {
+	var p Pool
+	b := p.GetBytes()
+	if len(b) > 0 {
+		t.Fatalf("expected empty slice, got len=%d", len(b))
+	}
+	b = append(b, "custom-pool"...)
+	p.PutBytes(b)
+
+	s := p.GetSlice()
+	if len(s) > 0 {
+		t.Fatalf("expected empty slice, got len=%d", len(s))
+	}
+	s = append(s, "custom-slice"...)
+	p.PutSlice(s)
+
+	// Verify PutBytes/PutSlice with nil does not panic
+	p.PutBytes(nil)
+	p.PutSlice(nil)
+	PutBytes(nil)
+	PutSlice(nil)
+}

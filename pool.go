@@ -78,6 +78,67 @@ func (p *Pool) Put(b *ByteBuffer) {
 	}
 }
 
+// GetBytes returns an empty byte slice from the pool.
+//
+// Got byte slice may be returned to the pool via PutBytes call.
+// This reduces the number of memory allocations required for byte slice
+// management.
+func GetBytes() []byte { return defaultPool.GetBytes() }
+
+// GetBytes returns new byte slice with zero length.
+//
+// The byte slice may be returned to the pool via PutBytes after the use
+// in order to minimize GC overhead.
+func (p *Pool) GetBytes() []byte {
+	v := p.pool.Get()
+	if v != nil {
+		return v.(*ByteBuffer).B
+	}
+	return make([]byte, 0, atomic.LoadUint64(&p.defaultSize))
+}
+
+// PutBytes returns byte slice to the pool.
+//
+// b mustn't be touched after returning it to the pool.
+// Otherwise data races will occur.
+func PutBytes(b []byte) { defaultPool.PutBytes(b) }
+
+// PutBytes releases byte slice obtained via GetBytes to the pool.
+//
+// The slice mustn't be accessed after returning to the pool.
+func (p *Pool) PutBytes(b []byte) {
+	idx := index(len(b))
+
+	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
+		p.calibrate()
+	}
+
+	maxSize := int(atomic.LoadUint64(&p.maxSize))
+	if maxSize == 0 || cap(b) <= maxSize {
+		p.pool.Put(&ByteBuffer{B: b[:0]})
+	}
+}
+
+// GetSlice returns an empty byte slice from the pool.
+//
+// It is an alias for GetBytes.
+func GetSlice() []byte { return defaultPool.GetSlice() }
+
+// GetSlice returns new byte slice with zero length.
+//
+// It is an alias for GetBytes.
+func (p *Pool) GetSlice() []byte { return p.GetBytes() }
+
+// PutSlice returns byte slice to the pool.
+//
+// It is an alias for PutBytes.
+func PutSlice(b []byte) { defaultPool.PutSlice(b) }
+
+// PutSlice releases byte slice to the pool.
+//
+// It is an alias for PutBytes.
+func (p *Pool) PutSlice(b []byte) { p.PutBytes(b) }
+
 func (p *Pool) calibrate() {
 	if !atomic.CompareAndSwapUint64(&p.calibrating, 0, 1) {
 		return

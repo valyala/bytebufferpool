@@ -30,3 +30,23 @@ func BenchmarkBytesBufferWrite(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkPoolGetPut(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			bb := Get()
+			bb.B = append(bb.B, "foobarbaz"...)
+			Put(bb)
+		}
+	})
+}
+
+func BenchmarkPoolGetBytesPutBytes(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			buf := GetBytes()
+			buf = append(buf, "foobarbaz"...)
+			PutBytes(buf)
+		}
+	})
+}

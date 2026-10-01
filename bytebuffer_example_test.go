@@ -19,3 +19,16 @@ func ExampleByteBuffer() {
 	// no longer used.
 	bytebufferpool.Put(bb)
 }
+
+func ExampleGetBytes() {
+	buf := bytebufferpool.GetBytes()
+
+	buf = append(buf, "first line\n"...)
+	buf = append(buf, "second line\n"...)
+
+	fmt.Printf("slice contents=%q", buf)
+
+	// It is safe to release byte slice now, since it is
+	// no longer used.
+	bytebufferpool.PutBytes(buf)
+}
