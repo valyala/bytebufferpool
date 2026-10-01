@@ -32,20 +32,25 @@ func (b *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	if nMax == 0 {
 		nMax = 64
 		p = make([]byte, nMax)
+		b.B = p[:nStart]
 	} else {
 		p = p[:nMax]
 	}
 	for {
 		if n == nMax {
 			nMax *= 2
+			if nMax < 64 {
+				nMax = 64
+			}
 			bNew := make([]byte, nMax)
 			copy(bNew, p)
 			p = bNew
+			b.B = p[:n]
 		}
 		nn, err := r.Read(p[n:])
 		n += int64(nn)
+		b.B = p[:n]
 		if err != nil {
-			b.B = p[:n]
 			n -= nStart
 			if err == io.EOF {
 				return n, nil

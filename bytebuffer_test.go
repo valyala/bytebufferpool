@@ -136,3 +136,105 @@ func TestByteBufferGetStringConcurrent(t *testing.T) {
 		}
 	}
 }
+
+func TestByteBufferReadFromEmpty(t *testing.T) {
+	var bb ByteBuffer
+	r := bytes.NewBuffer(nil)
+	n, err := bb.ReadFrom(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if n != 0 {
+		t.Fatalf("unexpected n=%d. Expecting 0", n)
+	}
+	if cap(bb.B) < 64 {
+		t.Fatalf("unexpected capacity %d; expected at least 64", cap(bb.B))
+	}
+	if bb.Len() != 0 {
+		t.Fatalf("unexpected len %d; expected 0", bb.Len())
+	}
+}
+
+func TestByteBufferReadFromSmallInitialCap(t *testing.T) {
+	for initCap := 1; initCap < 64; initCap++ {
+		var bb ByteBuffer
+		bb.B = make([]byte, initCap)
+		for j := 0; j < initCap; j++ {
+			bb.B[j] = 'x'
+		}
+		expectedS := "hello world from reader"
+		r := bytes.NewBufferString(expectedS)
+		n, err := bb.ReadFrom(r)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if n != int64(len(expectedS)) {
+			t.Fatalf("unexpected n=%d. Expecting %d", n, len(expectedS))
+		}
+		if cap(bb.B) < 64 {
+			t.Fatalf("initCap=%d: unexpected cap=%d. Expecting at least 64", initCap, cap(bb.B))
+		}
+		expectedTotal := string(bytes.Repeat([]byte{'x'}, initCap)) + expectedS
+		if string(bb.B) != expectedTotal {
+			t.Fatalf("unexpected result %q; expecting %q", string(bb.B), expectedTotal)
+		}
+	}
+}
+
+func TestByteBufferReadFromReallocSliceUpdate(t *testing.T) {
+	var bb ByteBuffer
+	data := make([]byte, 1024)
+	for i := range data {
+		data[i] = byte(i % 256)
+	}
+
+	r := bytes.NewReader(data)
+	n, err := bb.ReadFrom(r)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if n != int64(len(data)) {
+		t.Fatalf("unexpected n=%d. Expecting %d", n, len(data))
+	}
+	if !bytes.Equal(bb.B, data) {
+		t.Fatalf("read data does not match original")
+	}
+	if bb.Len() != len(data) {
+		t.Fatalf("bb.Len()=%d; expecting %d", bb.Len(), len(data))
+	}
+}
+
+type errReader struct {
+	data []byte
+	err  error
+}
+
+func (er *errReader) Read(p []byte) (int, error) {
+	if len(er.data) == 0 {
+		return 0, er.err
+	}
+	n := copy(p, er.data)
+	er.data = er.data[n:]
+	return n, er.err
+}
+
+func TestByteBufferReadFromErrorPreservesRead(t *testing.T) {
+	customErr := fmt.Errorf("read failure")
+	r := &errReader{
+		data: []byte("partial content"),
+		err:  customErr,
+	}
+
+	var bb ByteBuffer
+	n, err := bb.ReadFrom(r)
+	if err != customErr {
+		t.Fatalf("expected %v, got %v", customErr, err)
+	}
+	if n != int64(len("partial content")) {
+		t.Fatalf("expected n=%d, got %d", len("partial content"), n)
+	}
+	if bb.String() != "partial content" {
+		t.Fatalf("expected string %q, got %q", "partial content", bb.String())
+	}
+}
+
